@@ -1,0 +1,33 @@
+---
+frameworks:
+  drupal:
+      - drupal/core
+      - drupal/drupal
+  wordpress:
+    - johnpbloch/wordpress-core
+    - roots/wordpress
+  laravel:
+    - laravel/framework
+packages:
+  - drupal/print
+  - drupal/image_export_import
+  - drupal/remote_stream_wrapper
+  - drupal/vendor_stream_wrapper
+  - drupal/cog
+  - drupal/media_entity_flickr
+  - drupal/vppr
+  - drupal/exif
+  - drupal/private_taxonomy
+  - drupal/business_responsive_theme
+  - drupal/swiftype
+  - drupal/navbar
+  - drupal/rate
+  - drupal/expire_reset_pass_link
+  - drupal/admin_toolbar_search
+  - drupal/colorbox
+  - drupal/tac_lite
+  - drupal/anonymousredirect
+  - drupal/fancy_file_delete
+  - drupal/custom_breadcrumbs
+  - drupal/quickedit
+  
