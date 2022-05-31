@@ -1,5 +1,5 @@
-use reqwest::{Client, RequestBuilder, IntoUrl};
-// use chrono::{DateTime, Local};
+use reqwest::{Client, RequestBuilder, IntoUrl, Url};
+use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
 // use tokio::fs::read_to_string;
 use async_recursion::async_recursion;
@@ -11,6 +11,48 @@ struct Oauth2 {
     access_token: String,
     expires_in: i32,
     token_type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct HALLink {
+    pub title: Option<String>,
+    pub href: String,
+    pub method: Option<String>,
+}
+
+// TODO impl TryFrom<HALLink> for Url - std::convert::TryFrom()
+// impl TryFrom<HALLink> for Url {
+//     type Error = ...;
+//     fn try_from(value: HALLink) -> Result<Self, Self::Error> {
+//     }
+// }
+
+// -- IntoUrl is sealed FFS 
+// impl IntoUrl for HALLink {
+//     fn into_url(self) -> Result<Url, url::Url::ParseError> {
+//         let base_url = Url::parse("https://api.platform.sh").unwrap();
+//         base_url.join(self.href.as_str())
+//     }
+// }
+
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Organization {
+    pub id: String,
+    pub owner_id: String, // UUID
+    pub namespace: String,
+    pub name: String,
+    pub label: String,
+    pub country: String,
+    created_at: Option<DateTime<Local>>, // date-time
+    updated_at: Option<DateTime<Local>>
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Organizations {
+    // pub count: i32,
+    pub items: Vec<Organization>,
+    pub _links: HashMap<String,HALLink>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -36,15 +78,9 @@ pub struct Subscription {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct HALLink {
-    pub title: Option<String>,
-    pub href: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct Subscriptions {
-    pub count: i32,
-    pub subscriptions: Vec<Subscription>,
+    // pub count: i32,
+    pub items: Vec<Subscription>,
     pub _links: HashMap<String,HALLink>,
 }
 
@@ -85,7 +121,7 @@ pub struct GitBlob {
     pub sha: String,
     pub size: u32,
     pub encoding: String,
-    pub content: String,
+    pub content: String
 }
 
 #[derive(Debug)]
@@ -128,23 +164,34 @@ impl ApiClient {
             .bearer_auth(&self.oauth2.access_token)
     }
 
-    pub async fn subscriptions(&self) -> Result<Vec<Subscription>, reqwest::Error> {
+    // pub fn get(&self, url: String) -> RequestBuilder {
+    //     let options = Url::options();
+    //     let api = Url::parse("https://api.platform.sh");
+    //     let base_url = options.base_url(Some(&api));
+    //     let endpoint_url = base_url.parse(&url);
+
+    //     self.client
+    //         .get(endpoint_url)
+    //         .bearer_auth(&self.oauth2.access_token)
+    // }
+
+    pub async fn organizations(&self) -> Result<Vec<Organization>, reqwest::Error> {
         // Really ought to return a Stream/Iterator
 
-        let mut subscriptions: Vec<Subscription> = vec![];
-        let mut url = "https://api.platform.sh/subscriptions".to_string();
+        let mut organizations: Vec<Organization> = vec![];
+        let mut url = "https://api.platform.sh/organizations".to_string();
 
-        eprintln!("Getting subscriptions...");
+        eprintln!("Getting organizations...");
         loop {
             eprintln!("\t{}", url);
-            let page: Subscriptions = self
+            let page: Organizations = self
                 .get(url)
                 .send()
                 .await?
                 .json()
                 .await?;
     
-            subscriptions.extend(page.subscriptions);
+            organizations.extend(page.items);
             
             // eprintln!("{:#?}", page._links);
             match page._links.get("next") {
@@ -152,6 +199,45 @@ impl ApiClient {
                     url = next.href.clone();
                 },
                 _ => { break; },
+            }
+        }
+        
+        Ok(organizations)
+    }
+
+    pub async fn subscriptions(&self) -> Result<Vec<Subscription>, reqwest::Error> {
+        // Really ought to return a Stream/Iterator
+
+        let organizations = self.organizations().await?;
+
+        let mut subscriptions: Vec<Subscription> = vec![];
+        
+        for organization in organizations.iter() {
+            let mut url = format!("https://api.platform.sh/organizations/{}/subscriptions", organization.id);
+
+            eprintln!("Getting subscriptions...");
+            loop {
+                eprintln!("\t{}", url);
+                let page: Subscriptions = self
+                    .get(url)
+                    .send()
+                    .await?
+                    .json()
+                    .await?;
+        
+                subscriptions.extend(page.items);
+                
+                // eprintln!("{:#?}", page._links);
+                match page._links.get("next") {
+                    Some(next) => {
+                        url = if next.href.starts_with("https://") {
+                            next.href.clone()
+                        } else {
+                            format!("https://api.platform.sh{}", next.href)
+                        }
+                    },
+                    _ => { break; },
+                }
             }
         }
         

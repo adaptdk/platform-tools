@@ -1,4 +1,5 @@
 use chrono::{DateTime, Local};
+use regex::Regex;
 use serde::{Deserialize, Serialize}; // , de::value
 // use tokio::io::AsyncWriteExt;
 use std::{collections::HashMap, env, fs::File, io, str};
@@ -127,8 +128,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let packages_map = config.packages_map();
     let mut lines: Vec<Report> = Vec::new();
 
+    let drupal = Regex::new(r"projects\[drupal\]\[version\]\s*=\s*([0-9.]+)").unwrap();
     
     let client = platform::ApiClient::new(&token).await?;
+
+    let organizations = client.organizations().await?;
+    eprint!("{:#?}", organizations);
 
     let subscriptions = client.subscriptions().await?;
     for subscription in subscriptions.iter() {
@@ -149,21 +154,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         
         if let Ok(environments) = environments_res {
             for environment in environments.iter() {
-                eprintln!("\t{}: {}", environment.title, environment.is_main);
+                // eprintln!("\t{}: {}", environment.title, environment.is_main);
                 if environment.is_main {
-                    eprintln!("{:#?}", environment);
+                    // eprintln!("{:#?}", environment);
                     eprintln!("\t{}", environment.name);
                     if let Some(head_commit) = environment.head_commit.as_ref() {
                         let git_commit = client
                             .git_commit(&subscription.project_id, head_commit)
                             .await?;
-                        eprintln!("{:#?}", git_commit);
+                        // eprintln!("{:#?}", git_commit);
                         
                         let items = client
                             .git_tree_find(
                                 &subscription.project_id, 
                                 &git_commit.tree, 
-                                |path| path == ".platform.app.yaml" || path == "composer.lock",
+                                |path| path == ".platform.app.yaml" || path == "composer.lock" || path.ends_with(".make"),
                                  2
                             )
                             .await?;
@@ -192,6 +197,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                     }
                                                 }
                                             }
+                                        }
+
+                                        if let Some(build) = app.build {
+                                            if let Some(flavor) = build.get("flavor") {
+                                                if flavor == "drupal" {
+                                                    // This shit is oldschool...
+                                                    for make in items.iter().filter(|x| x.path.ends_with(".make") && x.parent == item.parent) {
+                                                        if let Ok(buffer) = client.git_blob_decode(&subscription.project_id, &make.sha).await {
+                                                            if let Ok(content) = str::from_utf8(&buffer) {
+                                                                for line in content.lines() {
+                                                                    for cap in drupal.captures_iter(line) {
+                                                                        version.insert("drupal".to_string(), cap[1].to_string());
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            
                                         }
                                     }
     
@@ -251,7 +276,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     wtr.write_record(heading)?;
 
     let report_cols = config.report_cols();
-    lines.sort_by_cached_key(|x| -> String {format!("{}-{}", x.title, x.app)} );
+    lines.sort_by_cached_key(|x| -> String {format!("{}-{}", x.title.to_lowercase(), x.app)} );
     for line in lines.iter() {
         // eprintln!("{:#?}", line);
         let mut record = vec![
