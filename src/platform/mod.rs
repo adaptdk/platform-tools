@@ -1,4 +1,4 @@
-use reqwest::{Client, RequestBuilder, IntoUrl, Url};
+use reqwest::{Client, RequestBuilder, IntoUrl};
 use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
 // use tokio::fs::read_to_string;
@@ -101,13 +101,13 @@ pub struct GitSearchResult {
     pub parent: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GitTreeItem {
-    path: String,
-    mode: String,
+    pub path: String,
+    pub mode: String,
     #[serde(rename="type")]
-    t_type: String,
-    sha: String,
+    pub t_type: String,
+    pub sha: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -306,6 +306,21 @@ impl ApiClient {
         }
 
         Ok(results)
+    }
+
+    pub async fn git_tree_lookup_path(&self, project_id: &str, tree: &str, path: &str) -> Result<Option<GitTreeItem>, reqwest::Error> {
+        let git_tree = self
+            .git_tree(project_id, tree)
+            .await?;
+
+        let mut result: Option<GitTreeItem> = None;
+        for item in git_tree.tree.iter() {
+            if item.path == path {
+                result = Some(item.clone());
+            }
+        }
+
+        Ok(result)
     }
 
     pub async fn git_blob(&self, project_id: &str, sha: &str) -> Result<GitBlob, reqwest::Error> {
