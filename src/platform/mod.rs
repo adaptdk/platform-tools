@@ -126,6 +126,7 @@ pub struct GitBlob {
 
 #[derive(Debug)]
 pub struct ApiClient {
+    #[allow(dead_code)]
     api_token: String,
     oauth2: Oauth2,
     client: Client,
