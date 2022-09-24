@@ -1,4 +1,4 @@
-use reqwest::{Client, RequestBuilder, IntoUrl};
+use reqwest::{Client, RequestBuilder};
 // use chrono::{DateTime, Local};
 // use serde::{Deserialize, Serialize};
 // use tokio::fs::read_to_string;
@@ -149,7 +149,7 @@ impl ApiClient {
                         // } else {
                         //     format!("https://api.platform.sh{}", next.href)
                         // }
-                        url = base_url.parse(next.href.as_str()).unwrap().to_string()
+                        url = next.href.clone()
                     },
                     _ => { break; },
                 }
