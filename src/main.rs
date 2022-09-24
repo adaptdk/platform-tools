@@ -7,63 +7,8 @@ use std::{collections::HashMap, env, fs::File, io, str};
 mod php_composer;
 mod platform;
 
-#[derive(Debug, Serialize, Deserialize)]
-struct Environment {
-    created_at: Option<DateTime<Local>>, // date-time
-    updated_at: Option<DateTime<Local>>, // date-time
+// TODO move to platform 
 
-    name: String,
-    machine_name: String,
-    title: String,
-    edge_hostname: String,
-
-    attributes: HashMap<String, String>,
-
-    #[serde(rename = "type")]
-    e_type: String,
-
-    parent: Option<String>,
-    clone_parent_on_create: bool,
-    deployment_target: String,
-    status: String, // enum "active" "dirty" "inactive" "deleting"
-
-    is_dirty: bool,
-    is_main: bool,
-    is_pr: bool,
-    has_code: bool,
-    has_deployment: bool,
-
-    last_backup_at: Option<DateTime<Local>>,
-    last_active_at: Option<DateTime<Local>>,
-
-    head_commit: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct PlatformAppCron {
-    spec: String,
-    cmd: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct PlatformApp {
-    name: String,
-    #[serde(rename="type")]
-    a_type: String,
-    build: Option<HashMap<String, String>>,
-    hooks: Option<HashMap<String, String>>,
-    crons: HashMap<String, PlatformAppCron>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct PlatformService {
-    #[serde(rename="type")]
-    s_type: String,
-    disk: Option<i32>,
-    size: Option<String>,
-    // configuration: Option<HashMap<String, String>>, // more complex
-    relationships: Option<HashMap<String, String>>,
-}
 #[derive(Debug, Serialize, Deserialize)]
 struct Config {
     frameworks: Option<HashMap<String, Vec<String>>>,
@@ -153,7 +98,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         //    continue;
         // }
 
-        let environments_res: Result<Vec<Environment>, reqwest::Error> = client
+        let environments_res: Result<Vec<platform::Environment>, reqwest::Error> = client
             .get(format!(
                 "https://api.platform.sh/projects/{}/environments", 
                 subscription.project_id
@@ -180,7 +125,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             if let Some(services_yaml) = client.git_tree_lookup_path(&subscription.project_id, &dot_platform.sha, "services.yaml").await? {
                                 eprintln!("\t\tgot a services file {}", services_yaml.t_type);
                                 if let Ok(buffer) = client.git_blob_decode(&subscription.project_id, &services_yaml.sha).await {
-                                    if let Ok(services) = serde_yaml::from_slice::<HashMap<String,PlatformService>>(&buffer) {
+                                    if let Ok(services) = serde_yaml::from_slice::<HashMap<String,platform::PlatformService>>(&buffer) {
                                         // eprintln!("{:#?}", services);
                                         for (name, service) in services.iter() {
                                             eprintln!("\t\t\t{}: {}", name, service.s_type);
@@ -213,7 +158,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 .git_blob(&subscription.project_id, &item.sha)
                                 .await?;
                             if let Ok(content) = &base64::decode(blob.content) {
-                                if let Ok(app) = serde_yaml::from_slice::<PlatformApp>(content) {
+                                if let Ok(app) = serde_yaml::from_slice::<platform::PlatformApp>(content) {
                                     // eprintln!("{:#?}", app);
                                     eprintln!("\t\t{}", app.name);
 

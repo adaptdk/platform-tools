@@ -1,24 +1,15 @@
 use reqwest::{Client, RequestBuilder, IntoUrl};
-use chrono::{DateTime, Local};
-use serde::{Deserialize, Serialize};
+// use chrono::{DateTime, Local};
+// use serde::{Deserialize, Serialize};
 // use tokio::fs::read_to_string;
 use async_recursion::async_recursion;
 use thiserror::Error;
-use std::{collections::HashMap, vec};
+use std::vec;
+use url::Url;
 
-#[derive(Debug, Serialize, Deserialize)]
-struct Oauth2 {
-    access_token: String,
-    expires_in: i32,
-    token_type: String,
-}
+mod model;
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct HALLink {
-    pub title: Option<String>,
-    pub href: String,
-    pub method: Option<String>,
-}
+pub use crate::platform::model::*;
 
 // TODO impl TryFrom<HALLink> for Url - std::convert::TryFrom()
 // impl TryFrom<HALLink> for Url {
@@ -36,59 +27,12 @@ pub struct HALLink {
 // }
 
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Organization {
-    pub id: String,
-    pub owner_id: String, // UUID
-    pub namespace: String,
-    pub name: String,
-    pub label: String,
-    pub country: String,
-    created_at: Option<DateTime<Local>>, // date-time
-    updated_at: Option<DateTime<Local>>
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Organizations {
-    // pub count: i32,
-    pub items: Vec<Organization>,
-    pub _links: HashMap<String,HALLink>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Subscription {
-    pub id: String,
-    pub status: String,
-    pub created_at: String, // date-time something chrono?
-    pub owner: String,      // UUID
-    // pub owner_info struct
-    // pub vendor: String, 
-    pub plan: String,
-    pub environments: i32,
-    pub storage: i32, // in MiB
-    // pub user_licenses: i32,
-    pub project_id: String,
-    // pub project_endpoint: String, // doesn't seem to exist
-    pub project_title: String,
-    pub project_region: Option<String>,
-    pub project_region_label: Option<String>,
-    // pub project_notes: String, // not set
-    pub project_ui: String, // URL
-    // pub project_options: struct...
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Subscriptions {
-    // pub count: i32,
-    pub items: Vec<Subscription>,
-    pub _links: HashMap<String,HALLink>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct GitCommit {
-    pub id: String,
-    pub sha: String,
-    pub tree: String,
+#[derive(Debug)]
+pub struct ApiClient {
+    #[allow(dead_code)]
+    api_token: String,
+    oauth2: Oauth2,
+    client: Client,
 }
 
 #[derive(Debug)]
@@ -99,37 +43,6 @@ pub struct GitSearchResult {
     pub sha: String,
 
     pub parent: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct GitTreeItem {
-    pub path: String,
-    pub mode: String,
-    #[serde(rename="type")]
-    pub t_type: String,
-    pub sha: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct GitTree {
-    id: String,
-    tree: Vec<GitTreeItem>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct GitBlob {
-    pub sha: String,
-    pub size: u32,
-    pub encoding: String,
-    pub content: String
-}
-
-#[derive(Debug)]
-pub struct ApiClient {
-    #[allow(dead_code)]
-    api_token: String,
-    oauth2: Oauth2,
-    client: Client,
 }
 
 #[derive(Error, Debug)]
@@ -159,22 +72,22 @@ impl ApiClient {
         Ok(ApiClient { api_token: api_token.to_string(), oauth2, client })
     }
 
-    pub fn get<U: IntoUrl>(&self, url: U) -> RequestBuilder {
-        self.client
-            .get(url)
-            .bearer_auth(&self.oauth2.access_token)
-    }
-
-    // pub fn get(&self, url: String) -> RequestBuilder {
-    //     let options = Url::options();
-    //     let api = Url::parse("https://api.platform.sh");
-    //     let base_url = options.base_url(Some(&api));
-    //     let endpoint_url = base_url.parse(&url);
-
+    // pub fn get<U: IntoUrl>(&self, url: U) -> RequestBuilder {
     //     self.client
-    //         .get(endpoint_url)
+    //         .get(url)
     //         .bearer_auth(&self.oauth2.access_token)
     // }
+
+    pub fn get(&self, url: String) -> RequestBuilder {
+        let options = Url::options();
+        let api = Url::parse("https://api.platform.sh").unwrap();
+        let base_url = options.base_url(Some(&api));
+        let endpoint_url = base_url.parse(&url).unwrap();
+
+        self.client
+            .get(endpoint_url)
+            .bearer_auth(&self.oauth2.access_token)
+    }
 
     pub async fn organizations(&self) -> Result<Vec<Organization>, reqwest::Error> {
         // Really ought to return a Stream/Iterator
@@ -231,11 +144,12 @@ impl ApiClient {
                 // eprintln!("{:#?}", page._links);
                 match page._links.get("next") {
                     Some(next) => {
-                        url = if next.href.starts_with("https://") {
-                            next.href.clone()
-                        } else {
-                            format!("https://api.platform.sh{}", next.href)
-                        }
+                        // url = if next.href.starts_with("https://") {
+                        //     next.href.clone()
+                        // } else {
+                        //     format!("https://api.platform.sh{}", next.href)
+                        // }
+                        url = base_url.parse(next.href.as_str()).unwrap().to_string()
                     },
                     _ => { break; },
                 }
