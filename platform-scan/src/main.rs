@@ -3,9 +3,10 @@ use regex::Regex;
 use serde::{Deserialize, Serialize}; // , de::value
 // use tokio::io::AsyncWriteExt;
 use std::{collections::HashMap, env, fs::File, io, str};
+use platform;
 
 mod php_composer;
-mod platform;
+
 
 // TODO move to platform 
 

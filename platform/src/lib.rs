@@ -4,12 +4,13 @@ use reqwest::{Client, RequestBuilder};
 // use tokio::fs::read_to_string;
 use async_recursion::async_recursion;
 use thiserror::Error;
+use tracing::{info, instrument};
 use std::vec;
 use url::Url;
 
 mod model;
 
-pub use crate::platform::model::*;
+pub use crate::model::*;
 
 // TODO impl TryFrom<HALLink> for Url - std::convert::TryFrom()
 // impl TryFrom<HALLink> for Url {
@@ -54,6 +55,7 @@ pub enum Error {
 }
 
 impl ApiClient {
+    #[instrument]
     pub async fn new (api_token: &str) -> Result<ApiClient, reqwest::Error> {
         let client = reqwest::Client::new();
 
@@ -72,12 +74,7 @@ impl ApiClient {
         Ok(ApiClient { api_token: api_token.to_string(), oauth2, client })
     }
 
-    // pub fn get<U: IntoUrl>(&self, url: U) -> RequestBuilder {
-    //     self.client
-    //         .get(url)
-    //         .bearer_auth(&self.oauth2.access_token)
-    // }
-
+    #[instrument(skip(self))]
     pub fn get(&self, url: String) -> RequestBuilder {
         let options = Url::options();
         let api = Url::parse("https://api.platform.sh").unwrap();
@@ -89,6 +86,7 @@ impl ApiClient {
             .bearer_auth(&self.oauth2.access_token)
     }
 
+    #[instrument(skip(self))]
     pub async fn organizations(&self) -> Result<Vec<Organization>, reqwest::Error> {
         // Really ought to return a Stream/Iterator
 
@@ -119,6 +117,7 @@ impl ApiClient {
         Ok(organizations)
     }
 
+    #[instrument(skip(self))]
     pub async fn subscriptions(&self) -> Result<Vec<Subscription>, reqwest::Error> {
         // Really ought to return a Stream/Iterator
 
@@ -159,6 +158,7 @@ impl ApiClient {
         Ok(subscriptions)
     } 
 
+    #[instrument(skip(self))]
     pub async fn git_commit(&self, project_id: &str, head_commit: &str) -> Result<GitCommit, reqwest::Error> {
         // eprintln!("https://api.platform.sh/projects/{}/git/commits/{}", project_id, head_commit);
         let response = self
@@ -174,6 +174,7 @@ impl ApiClient {
         Ok(git_commit)
     }
 
+    #[instrument(skip(self))]
     pub async fn git_tree(&self, project_id: &str, tree: &str) -> Result<GitTree, reqwest::Error> {
         // eprint!("https://api.platform.sh/projects/{}/git/trees/{}", project_id, tree);
         let git_tree: GitTree = self
@@ -223,6 +224,7 @@ impl ApiClient {
         Ok(results)
     }
 
+    #[instrument(skip(self))]
     pub async fn git_tree_lookup_path(&self, project_id: &str, tree: &str, path: &str) -> Result<Option<GitTreeItem>, reqwest::Error> {
         let git_tree = self
             .git_tree(project_id, tree)
@@ -238,6 +240,7 @@ impl ApiClient {
         Ok(result)
     }
 
+    #[instrument(skip(self))]
     pub async fn git_blob(&self, project_id: &str, sha: &str) -> Result<GitBlob, reqwest::Error> {
         let git_blob: GitBlob = self
             .get(format!("https://api.platform.sh/projects/{}/git/blobs/{}", project_id, sha))
@@ -249,6 +252,7 @@ impl ApiClient {
         Ok(git_blob)
     }
 
+    #[instrument(skip(self))]
     pub async fn git_blob_decode(&self, project_id: &str, sha: &str) -> Result<Vec<u8>, Error> {
         // eprintln!("download {} {}", project_id, sha);
         let blob: GitBlob = self
