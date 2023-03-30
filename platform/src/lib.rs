@@ -1,11 +1,8 @@
-use reqwest::{Client, RequestBuilder};
-// use chrono::{DateTime, Local};
-// use serde::{Deserialize, Serialize};
-// use tokio::fs::read_to_string;
 use async_recursion::async_recursion;
-use thiserror::Error;
-use tracing::{info, instrument};
+use reqwest::{Client, RequestBuilder};
 use std::vec;
+use thiserror::Error;
+use tracing::instrument;
 use url::Url;
 
 mod model;
@@ -19,14 +16,13 @@ pub use crate::model::*;
 //     }
 // }
 
-// -- IntoUrl is sealed FFS 
+// -- IntoUrl is sealed FFS
 // impl IntoUrl for HALLink {
 //     fn into_url(self) -> Result<Url, url::Url::ParseError> {
 //         let base_url = Url::parse("https://api.platform.sh").unwrap();
 //         base_url.join(self.href.as_str())
 //     }
 // }
-
 
 #[derive(Debug)]
 pub struct ApiClient {
@@ -56,13 +52,13 @@ pub enum Error {
 
 impl ApiClient {
     #[instrument]
-    pub async fn new (api_token: &str) -> Result<ApiClient, reqwest::Error> {
+    pub async fn new(api_token: &str) -> Result<ApiClient, reqwest::Error> {
         let client = reqwest::Client::new();
 
         // eprint!("get oauth2 token... ");
         let oauth2: Oauth2 = client
             .post("https://auth.api.platform.sh/oauth2/token")
-            .basic_auth( "platform-api-user", None::<String>)
+            .basic_auth("platform-api-user", None::<String>)
             .form(&[("grant_type", "api_token"), ("api_token", api_token)])
             .send()
             .await?
@@ -71,7 +67,11 @@ impl ApiClient {
         // eprintln!("ok");
         // eprintln!("{:#?}", oauth2);
 
-        Ok(ApiClient { api_token: api_token.to_string(), oauth2, client })
+        Ok(ApiClient {
+            api_token: api_token.to_string(),
+            oauth2,
+            client,
+        })
     }
 
     #[instrument(skip(self))]
@@ -96,24 +96,21 @@ impl ApiClient {
         // eprintln!("Getting organizations...");
         loop {
             eprintln!("\t{}", url);
-            let page: Organizations = self
-                .get(url)
-                .send()
-                .await?
-                .json()
-                .await?;
-    
+            let page: Organizations = self.get(url).send().await?.json().await?;
+
             organizations.extend(page.items);
-            
+
             // eprintln!("{:#?}", page._links);
             match page._links.get("next") {
                 Some(next) => {
                     url = next.href.clone();
-                },
-                _ => { break; },
+                }
+                _ => {
+                    break;
+                }
             }
         }
-        
+
         Ok(organizations)
     }
 
@@ -124,22 +121,20 @@ impl ApiClient {
         let organizations = self.organizations().await?;
 
         let mut subscriptions: Vec<Subscription> = vec![];
-        
+
         for organization in organizations.iter() {
-            let mut url = format!("https://api.platform.sh/organizations/{}/subscriptions", organization.id);
+            let mut url = format!(
+                "https://api.platform.sh/organizations/{}/subscriptions",
+                organization.id
+            );
 
             // eprintln!("Getting subscriptions...");
             loop {
                 // eprintln!("\t{}", url);
-                let page: Subscriptions = self
-                    .get(url)
-                    .send()
-                    .await?
-                    .json()
-                    .await?;
-        
+                let page: Subscriptions = self.get(url).send().await?.json().await?;
+
                 subscriptions.extend(page.items);
-                
+
                 // eprintln!("{:#?}", page._links);
                 match page._links.get("next") {
                     Some(next) => {
@@ -149,26 +144,33 @@ impl ApiClient {
                         //     format!("https://api.platform.sh{}", next.href)
                         // }
                         url = next.href.clone()
-                    },
-                    _ => { break; },
+                    }
+                    _ => {
+                        break;
+                    }
                 }
             }
         }
-        
+
         Ok(subscriptions)
-    } 
+    }
 
     #[instrument(skip(self))]
-    pub async fn git_commit(&self, project_id: &str, head_commit: &str) -> Result<GitCommit, reqwest::Error> {
+    pub async fn git_commit(
+        &self,
+        project_id: &str,
+        head_commit: &str,
+    ) -> Result<GitCommit, reqwest::Error> {
         // eprintln!("https://api.platform.sh/projects/{}/git/commits/{}", project_id, head_commit);
         let response = self
-            .get(format!("https://api.platform.sh/projects/{}/git/commits/{}", project_id, head_commit))
+            .get(format!(
+                "https://api.platform.sh/projects/{}/git/commits/{}",
+                project_id, head_commit
+            ))
             .send()
             .await?;
         // eprint!("git commit {:#?}", response);
-        let git_commit: GitCommit = response
-            .json()
-            .await?;
+        let git_commit: GitCommit = response.json().await?;
         // eprintln!("ok");
 
         Ok(git_commit)
@@ -178,7 +180,10 @@ impl ApiClient {
     pub async fn git_tree(&self, project_id: &str, tree: &str) -> Result<GitTree, reqwest::Error> {
         // eprint!("https://api.platform.sh/projects/{}/git/trees/{}", project_id, tree);
         let git_tree: GitTree = self
-            .get(format!("https://api.platform.sh/projects/{}/git/trees/{}", project_id, tree))
+            .get(format!(
+                "https://api.platform.sh/projects/{}/git/trees/{}",
+                project_id, tree
+            ))
             .send()
             .await?
             .json()
@@ -189,25 +194,29 @@ impl ApiClient {
     }
 
     #[async_recursion]
-    pub async fn git_tree_find(&self, project_id: &str, tree: &str, f: fn(path: &str) -> bool, limit: u8) -> Result<Vec<GitSearchResult>, reqwest::Error> {
+    pub async fn git_tree_find(
+        &self,
+        project_id: &str,
+        tree: &str,
+        f: fn(path: &str) -> bool,
+        limit: u8,
+    ) -> Result<Vec<GitSearchResult>, reqwest::Error> {
         let mut results: Vec<GitSearchResult> = Vec::new();
 
         if limit == 0 {
-            return  Ok(results);
+            return Ok(results);
         }
 
-        let git_tree = self
-            .git_tree(project_id, tree)
-            .await?;
-        
+        let git_tree = self.git_tree(project_id, tree).await?;
+
         for item in git_tree.tree.iter() {
             if item.t_type == "tree" {
                 // root format!("{}/{}", root, item.path)
                 let mut sub_results = self
-                    .git_tree_find(project_id, &item.sha, f, limit -1)
+                    .git_tree_find(project_id, &item.sha, f, limit - 1)
                     .await?;
                 results.append(&mut sub_results);
-            } 
+            }
             if item.t_type == "blob" && f(&item.path) {
                 let res = GitSearchResult {
                     path: item.path.clone(),
@@ -225,10 +234,13 @@ impl ApiClient {
     }
 
     #[instrument(skip(self))]
-    pub async fn git_tree_lookup_path(&self, project_id: &str, tree: &str, path: &str) -> Result<Option<GitTreeItem>, reqwest::Error> {
-        let git_tree = self
-            .git_tree(project_id, tree)
-            .await?;
+    pub async fn git_tree_lookup_path(
+        &self,
+        project_id: &str,
+        tree: &str,
+        path: &str,
+    ) -> Result<Option<GitTreeItem>, reqwest::Error> {
+        let git_tree = self.git_tree(project_id, tree).await?;
 
         let mut result: Option<GitTreeItem> = None;
         for item in git_tree.tree.iter() {
@@ -243,7 +255,10 @@ impl ApiClient {
     #[instrument(skip(self))]
     pub async fn git_blob(&self, project_id: &str, sha: &str) -> Result<GitBlob, reqwest::Error> {
         let git_blob: GitBlob = self
-            .get(format!("https://api.platform.sh/projects/{}/git/blobs/{}", project_id, sha))
+            .get(format!(
+                "https://api.platform.sh/projects/{}/git/blobs/{}",
+                project_id, sha
+            ))
             .send()
             .await?
             .json()
@@ -255,9 +270,7 @@ impl ApiClient {
     #[instrument(skip(self))]
     pub async fn git_blob_decode(&self, project_id: &str, sha: &str) -> Result<Vec<u8>, Error> {
         // eprintln!("download {} {}", project_id, sha);
-        let blob: GitBlob = self
-            .git_blob(project_id, sha)
-            .await?;
+        let blob: GitBlob = self.git_blob(project_id, sha).await?;
         // eprintln!("download... ok");
 
         // Add compound Error type Enum reqwest::Error + base64 error
@@ -267,4 +280,3 @@ impl ApiClient {
         Ok(content)
     }
 }
-

@@ -1,0 +1,113 @@
+@PLATFORMSH_CLI_TOKEN={{$dotenv PLATFORMSH_CLI_TOKEN}}
+# @name oauth2
+post https://auth.api.platform.sh/oauth2/token HTTP/1.1
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic cGxhdGZvcm0tYXBpLXVzZXI6
+
+grant_type=api_token
+&api_token={{PLATFORMSH_CLI_TOKEN}}
+
+###
+
+@authToken = {{oauth2.response.body.access_token}}
+get https://api.platform.sh/organizations
+Authorization: Bearer {{authToken}}
+
+###
+
+get https://api.platform.sh/api/projects/77l2pun5tu7pq/environments/test
+Authorization: Bearer {{authToken}}
+
+###
+
+@authToken = {{oauth2.response.body.access_token}}
+@orgId = 01FF4NCSJA3VGZBXVG5CWYCDZ9
+# @name subscriptions
+get https://api.platform.sh/plat
+Authorization: Bearer {{authToken}}
+
+###
+
+@authToken = {{oauth2.response.body.access_token}}
+# @name subscriptions
+@orgId = 01FF4NCSJA3VGZBXVG5CWYCDZ9
+get https://api.platform.sh/organizations/{{orgId}}/subscriptions
+Authorization: Bearer {{authToken}}
+
+###
+
+@authToken = {{oauth2.response.body.access_token}}
+# @name subscriptions
+get https://api.platform.sh/subscriptions?page=2
+Authorization: Bearer {{authToken}}
+
+###
+
+@projectId={{subscriptions.response.body.subscriptions[4].project_id}}
+get https://api.platform.sh/projects/{{projectId}}/environments
+Authorization: Bearer {{authToken}}
+
+###
+
+@projectId=77l2pun5tu7pq
+get https://api.platform.sh/projects/{{projectId}}/environments/test
+Authorization: Bearer {{authToken}}
+
+###
+
+@projectId=c4jxmyo2647qy
+get https://api.platform.sh/projects/{{projectId}}/environments
+Authorization: Bearer {{authToken}}
+
+###
+
+# Frihedsbrevet
+@projectId=muvtvqjnckbp6
+get https://api.platform.sh/projects/{{projectId}}/environments
+Authorization: Bearer {{authToken}}
+
+###
+
+@projectId=m25el7hxl2g7q
+get https://api.platform.sh/projects/{{projectId}}/access
+Authorization: Bearer {{authToken}}
+
+###
+
+@projectId=6nmmzztpq7ifw
+get https://api.platform.sh/projects/{{projectId}}/access
+Authorization: Bearer {{authToken}}
+
+###
+@projectId=zmkzkflclscto
+get https://api.platform.sh/projects/{{projectId}}/access
+Authorization: Bearer {{authToken}}
+
+###
+@user_id=b63f0b34-8821-4323-a05f-db70eff34304
+get https://api.platform.sh/users/{{user_id}}/totp
+Authorization: Bearer {{authToken}}
+
+###
+# Jeudan Web
+@projectId=xgkantntzh2e6
+@environmentId=main
+@variableId=env:MIX_RECAPTCHA_SITE_KEY
+get https://api.platform.sh/projects/{{projectId}}/environments/{{environmentId}}/variables/{{variableId}}
+Authorization: Bearer {{authToken}}
+
+###
+# GSV Miltisite
+@projectId=tfje5oaa26mxs
+@environmentId=main
+get https://api.platform.sh/projects/{{projectId}}/variables/
+Authorization: Bearer {{authToken}}
+
+
+###
+# GSV Miltisite
+@projectId=tfje5oaa26mxs
+@environmentId=main
+@variableId=env:COMPOSER_AUTH
+get https://api.platform.sh/projects/{{projectId}}/variables/{{variableId}}
+Authorization: Bearer {{authToken}}

@@ -25,14 +25,14 @@ pub struct Organization {
     pub label: String,
     pub country: String,
     pub created_at: Option<DateTime<Local>>, // date-time
-    pub updated_at: Option<DateTime<Local>>
+    pub updated_at: Option<DateTime<Local>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Organizations {
     // pub count: i32,
     pub items: Vec<Organization>,
-    pub _links: HashMap<String,HALLink>,
+    pub _links: HashMap<String, HALLink>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -42,7 +42,7 @@ pub struct Subscription {
     pub created_at: String, // date-time something chrono?
     pub owner: String,      // UUID
     // pub owner_info struct
-    // pub vendor: String, 
+    // pub vendor: String,
     pub plan: String,
     pub environments: i32,
     pub storage: i32, // in MiB
@@ -54,14 +54,14 @@ pub struct Subscription {
     pub project_region_label: Option<String>,
     // pub project_notes: String, // not set
     pub project_ui: String, // URL
-    // pub project_options: struct...
+                            // pub project_options: struct...
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Subscriptions {
     // pub count: i32,
     pub items: Vec<Subscription>,
-    pub _links: HashMap<String,HALLink>,
+    pub _links: HashMap<String, HALLink>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -107,12 +107,12 @@ pub struct PlatformAppCron {
     pub spec: String,
 
     pub cmd: Option<String>, // deprecated it seems
-    pub commands: Option<PlatformAppCronCommands>
+    pub commands: Option<PlatformAppCronCommands>,
 }
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PlatformApp {
     pub name: String,
-    #[serde(rename="type")]
+    #[serde(rename = "type")]
     pub a_type: String,
     pub build: Option<HashMap<String, String>>,
     pub hooks: Option<HashMap<String, String>>,
@@ -121,7 +121,7 @@ pub struct PlatformApp {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PlatformService {
-    #[serde(rename="type")]
+    #[serde(rename = "type")]
     pub s_type: String,
     pub disk: Option<i32>,
     pub size: Option<String>,
@@ -140,7 +140,7 @@ pub struct GitCommit {
 pub struct GitTreeItem {
     pub path: String,
     pub mode: String,
-    #[serde(rename="type")]
+    #[serde(rename = "type")]
     pub t_type: String,
     pub sha: String,
 }
@@ -156,5 +156,5 @@ pub struct GitBlob {
     pub sha: String,
     pub size: u32,
     pub encoding: String,
-    pub content: String
+    pub content: String,
 }

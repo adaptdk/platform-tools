@@ -1,16 +1,10 @@
 use chrono::{DateTime, Local};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use tokio::time::error::Error; // , de::value
-// use tokio::io::AsyncWriteExt;
 use std::{collections::HashMap, env, fs::File, io, str};
-use tracing::{debug, info};
-use platform;
+use tracing::info;
 
 mod php_composer;
-
-
-// TODO move to platform 
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Config {
@@ -73,8 +67,8 @@ struct Report {
     // App
     a_type: String,
     app: String,
-    packages: HashMap<String,String>,
-    services: HashMap<String,String>
+    packages: HashMap<String, String>,
+    services: HashMap<String, String>,
 }
 
 #[tokio::main]
@@ -100,12 +94,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let subscriptions = client.subscriptions().await?;
     // for subscription in subscriptions.iter().filter(|x| x.project_id == "muvtvqjnckbp6") {
     for subscription in subscriptions.iter() {
-        eprintln!("{},{},{},{}", subscription.project_id, subscription.project_title, subscription.plan, subscription.storage);
-        info!(subscription.project_id, subscription.project_title, subscription.plan, subscription.storage);
+        eprintln!(
+            "{},{},{},{}",
+            subscription.project_id,
+            subscription.project_title,
+            subscription.plan,
+            subscription.storage
+        );
+        info!(
+            subscription.project_id,
+            subscription.project_title, subscription.plan, subscription.storage
+        );
 
         let environments_res: Result<Vec<platform::Environment>, reqwest::Error> = client
             .get(format!(
-                "https://api.platform.sh/projects/{}/environments", 
+                "https://api.platform.sh/projects/{}/environments",
                 subscription.project_id
             ))
             .send()
@@ -126,20 +129,46 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                         let mut service_versions = HashMap::new();
                         // Check .platform/services.yaml
-                        if let Some(dot_platform) = client.git_tree_lookup_path(&subscription.project_id, &git_commit.tree, ".platform").await? {
-                            if let Some(services_yaml) = client.git_tree_lookup_path(&subscription.project_id, &dot_platform.sha, "services.yaml").await? {
+                        if let Some(dot_platform) = client
+                            .git_tree_lookup_path(
+                                &subscription.project_id,
+                                &git_commit.tree,
+                                ".platform",
+                            )
+                            .await?
+                        {
+                            if let Some(services_yaml) = client
+                                .git_tree_lookup_path(
+                                    &subscription.project_id,
+                                    &dot_platform.sha,
+                                    "services.yaml",
+                                )
+                                .await?
+                            {
                                 eprintln!("\t\tgot a services file {}", services_yaml.t_type);
-                                if let Ok(buffer) = client.git_blob_decode(&subscription.project_id, &services_yaml.sha).await {
-                                    if let Ok(services) = serde_yaml::from_slice::<HashMap<String,platform::PlatformService>>(&buffer) {
+                                if let Ok(buffer) = client
+                                    .git_blob_decode(&subscription.project_id, &services_yaml.sha)
+                                    .await
+                                {
+                                    if let Ok(services) =
+                                        serde_yaml::from_slice::<
+                                            HashMap<String, platform::PlatformService>,
+                                        >(&buffer)
+                                    {
                                         // eprintln!("{:#?}", services);
                                         for (name, service) in services.iter() {
                                             eprintln!("\t\t\t{}: {}", name, service.s_type);
                                             //if service.s_type.starts_with("elasticsearch") {
                                             //    service_versions.insert("elasticsearch", service.s_type.clone());
                                             //}
-                                            if let Some((name, version)) = service.s_type.split_once(':') {
-                                                service_versions.insert(name.to_string(), version.to_string());
-                                                let count = services_cnt.entry(name.to_string()).or_insert(0);
+                                            if let Some((name, version)) =
+                                                service.s_type.split_once(':')
+                                            {
+                                                service_versions
+                                                    .insert(name.to_string(), version.to_string());
+                                                let count = services_cnt
+                                                    .entry(name.to_string())
+                                                    .or_insert(0);
                                                 *count += 1;
                                             }
                                         }
@@ -150,55 +179,94 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                         let items = client
                             .git_tree_find(
-                                &subscription.project_id, 
-                                &git_commit.tree, 
-                                |path| path == ".platform.app.yaml" || path == "composer.lock" || path.ends_with(".make"),
-                                2
+                                &subscription.project_id,
+                                &git_commit.tree,
+                                |path| {
+                                    path == ".platform.app.yaml"
+                                        || path == "composer.lock"
+                                        || path.ends_with(".make")
+                                },
+                                2,
                             )
                             .await?;
                         eprintln!("{:#?}", items);
 
                         for item in items.iter().filter(|x| x.path == ".platform.app.yaml") {
-                            let blob = client
-                                .git_blob(&subscription.project_id, &item.sha)
-                                .await?;
+                            let blob = client.git_blob(&subscription.project_id, &item.sha).await?;
                             if let Ok(content) = &base64::decode(blob.content) {
                                 // if let Ok(app) = serde_yaml::from_slice::<platform::PlatformApp>(content) {
                                 match serde_yaml::from_slice::<platform::PlatformApp>(content) {
                                     Err(error) => {
                                         eprintln!("{:#?}", error);
                                         unreadable.push(&subscription.project_id);
-                                    },
+                                    }
                                     Ok(app) => {
-                                    // eprintln!("{:#?}", app);
-                                    eprintln!("\t\t{}", app.name);
+                                        // eprintln!("{:#?}", app);
+                                        eprintln!("\t\t{}", app.name);
 
-                                    let mut version = HashMap::new();
-                                    if app.a_type.starts_with("php:") {
-                                        for lock in items.iter().filter(|x| x.path == "composer.lock" && x.parent == item.parent) {
-                                            // eprintln!("got {} {}", app.name, lock.path);
+                                        let mut version = HashMap::new();
+                                        if app.a_type.starts_with("php:") {
+                                            for lock in items.iter().filter(|x| {
+                                                x.path == "composer.lock" && x.parent == item.parent
+                                            }) {
+                                                // eprintln!("got {} {}", app.name, lock.path);
 
-                                            if let Ok(buffer) = client.git_blob_decode(&subscription.project_id, &lock.sha).await {
-                                                if let Ok(composer_lock) = serde_json::from_slice::<php_composer::ComposerLock>(&buffer) {
-                                                    for package in &composer_lock.packages {
-                                                        if let Some(name) = packages_map.get(&package.name) {
-                                                            version.insert(name.to_string(), package.version.to_string());
+                                                if let Ok(buffer) = client
+                                                    .git_blob_decode(
+                                                        &subscription.project_id,
+                                                        &lock.sha,
+                                                    )
+                                                    .await
+                                                {
+                                                    if let Ok(composer_lock) =
+                                                        serde_json::from_slice::<
+                                                            php_composer::ComposerLock,
+                                                        >(
+                                                            &buffer
+                                                        )
+                                                    {
+                                                        for package in &composer_lock.packages {
+                                                            if let Some(name) =
+                                                                packages_map.get(&package.name)
+                                                            {
+                                                                version.insert(
+                                                                    name.to_string(),
+                                                                    package.version.to_string(),
+                                                                );
+                                                            }
                                                         }
                                                     }
                                                 }
                                             }
-                                        }
 
-                                        if let Some(build) = app.build {
-                                            if let Some(flavor) = build.get("flavor") {
-                                                if flavor == "drupal" {
-                                                    // This shit is oldschool...
-                                                    for make in items.iter().filter(|x| x.path.ends_with(".make") && x.parent == item.parent) {
-                                                        if let Ok(buffer) = client.git_blob_decode(&subscription.project_id, &make.sha).await {
-                                                            if let Ok(content) = str::from_utf8(&buffer) {
-                                                                for line in content.lines() {
-                                                                    for cap in drupal.captures_iter(line) {
-                                                                        version.insert("drupal".to_string(), cap[1].to_string());
+                                            if let Some(build) = app.build {
+                                                if let Some(flavor) = build.get("flavor") {
+                                                    if flavor == "drupal" {
+                                                        // This shit is oldschool...
+                                                        for make in items.iter().filter(|x| {
+                                                            x.path.ends_with(".make")
+                                                                && x.parent == item.parent
+                                                        }) {
+                                                            if let Ok(buffer) = client
+                                                                .git_blob_decode(
+                                                                    &subscription.project_id,
+                                                                    &make.sha,
+                                                                )
+                                                                .await
+                                                            {
+                                                                if let Ok(content) =
+                                                                    str::from_utf8(&buffer)
+                                                                {
+                                                                    for line in content.lines() {
+                                                                        for cap in drupal
+                                                                            .captures_iter(line)
+                                                                        {
+                                                                            version.insert(
+                                                                                "drupal"
+                                                                                    .to_string(),
+                                                                                cap[1].to_string(),
+                                                                            );
+                                                                        }
                                                                     }
                                                                 }
                                                             }
@@ -207,25 +275,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                 }
                                             }
                                         }
+
+                                        let report = Report {
+                                            subscription: subscription.project_id.to_string(),
+                                            title: subscription.project_title.to_string(),
+                                            plan: subscription.plan.to_string(),
+                                            storage: subscription.storage,
+
+                                            last_backup_at: environment.last_backup_at,
+
+                                            app: app.name.to_string(),
+                                            a_type: app.a_type.to_string(),
+                                            packages: version,
+                                            services: service_versions.clone(),
+                                        };
+
+                                        lines.push(report);
                                     }
-
-                                    let report = Report {
-                                        subscription: subscription.project_id.to_string(),
-                                        title: subscription.project_title.to_string(),
-                                        plan: subscription.plan.to_string(),
-                                        storage: subscription.storage,
-
-                                        last_backup_at: environment.last_backup_at,
-
-                                        app: app.name.to_string(),
-                                        a_type: app.a_type.to_string(),
-                                        packages: version,
-                                        services: service_versions.clone()
-                                    };
-
-                                    lines.push(report);
                                 }
-                            }
                             }
                         }
                     } else {
@@ -245,7 +312,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 a_type: "".to_string(),
                 app: "".to_string(),
                 packages: HashMap::new(),
-                services: HashMap::new()
+                services: HashMap::new(),
             };
             lines.push(report);
         }
@@ -260,7 +327,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "last_backup_at".to_string(),
         "type".to_string(),
         "app".to_string(),
-    ]; 
+    ];
 
     eprintln!("{:#?}", services_cnt);
     eprintln!("{:#?}", unreadable);
@@ -276,7 +343,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     wtr.write_record(heading)?;
 
     let report_cols = config.report_cols();
-    lines.sort_by_cached_key(|x| -> String {format!("{}-{}", x.title.to_lowercase(), x.app)} );
+    lines.sort_by_cached_key(|x| -> String { format!("{}-{}", x.title.to_lowercase(), x.app) });
     for line in lines.iter() {
         // eprintln!("{:#?}", line);
         let mut record = vec![
@@ -295,21 +362,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // eprintln!("{:#?}", services_cols);
         for i in services_cols.iter() {
-            record.push(
-                match line.services.get(i) {
-                    Some(value) => value.clone(),
-                    None => "".to_string(),
-                }
-            )
+            record.push(match line.services.get(i) {
+                Some(value) => value.clone(),
+                None => "".to_string(),
+            })
         }
 
         for i in report_cols.iter() {
-            record.push(
-                match line.packages.get(i) {
-                    Some(value) => value.clone(),
-                    None => "".to_string(),
-                }
-            )
+            record.push(match line.packages.get(i) {
+                Some(value) => value.clone(),
+                None => "".to_string(),
+            })
         }
         wtr.write_record(&record)?;
     }
@@ -327,7 +390,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //     find the one whit environment.is_main
 //     https://github.com/platformsh/platformsh-cli/blob/f6f3777efe0b9c64bcb36d19171de0e07247e43b/src/Service/Api.php#L1168
 //     */
-
 //     let mut default_branch: Option<String> = None;
 
 //     default_branch
