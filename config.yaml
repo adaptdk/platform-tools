@@ -10,9 +10,7 @@ frameworks:
     - laravel/framework
   symfony:
     - symfony/symfony
+    - symfony/flex
 packages:
-  - drupal/print
-  - drupal/navbar
-  - drupal/colorbox
-  - guzzlehttp/psr7
+  - drupal/xray_audit # SA-CONTRIB-2023-012
   - guzzlehttp/guzzle
