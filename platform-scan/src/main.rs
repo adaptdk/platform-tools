@@ -1,8 +1,10 @@
 use chrono::{DateTime, Local};
 use regex::Regex;
-use serde::{Deserialize, Serialize}; // , de::value
+use serde::{Deserialize, Serialize};
+use tokio::time::error::Error; // , de::value
 // use tokio::io::AsyncWriteExt;
 use std::{collections::HashMap, env, fs::File, io, str};
+use tracing::{debug, info};
 use platform;
 
 mod php_composer;
@@ -79,6 +81,8 @@ struct Report {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let token = env::var("PLATFORMSH_CLI_TOKEN").expect("Missing PLATFORMSH_CLI_TOKEN");
 
+    tracing_subscriber::fmt::init();
+
     let file = File::open("config.yaml")?;
     let config: Config = serde_yaml::from_reader(file)?;
     let packages_map = config.packages_map();
@@ -92,12 +96,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     eprint!("{:#?}", organizations);
 
     let mut services_cnt = HashMap::new();
+    let mut unreadable = Vec::new();
     let subscriptions = client.subscriptions().await?;
+    // for subscription in subscriptions.iter().filter(|x| x.project_id == "muvtvqjnckbp6") {
     for subscription in subscriptions.iter() {
         eprintln!("{},{},{},{}", subscription.project_id, subscription.project_title, subscription.plan, subscription.storage);
-        // if subscription.project_id != "botcwpoam2wde" && subscription.project_id != "zmkzkflclscto" { 
-        //    continue;
-        // }
+        info!(subscription.project_id, subscription.project_title, subscription.plan, subscription.storage);
 
         let environments_res: Result<Vec<platform::Environment>, reqwest::Error> = client
             .get(format!(
@@ -149,17 +153,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 &subscription.project_id, 
                                 &git_commit.tree, 
                                 |path| path == ".platform.app.yaml" || path == "composer.lock" || path.ends_with(".make"),
-                                 2
+                                2
                             )
                             .await?;
-                        // eprintln!("{:#?}", items);
+                        eprintln!("{:#?}", items);
 
                         for item in items.iter().filter(|x| x.path == ".platform.app.yaml") {
                             let blob = client
                                 .git_blob(&subscription.project_id, &item.sha)
                                 .await?;
                             if let Ok(content) = &base64::decode(blob.content) {
-                                if let Ok(app) = serde_yaml::from_slice::<platform::PlatformApp>(content) {
+                                // if let Ok(app) = serde_yaml::from_slice::<platform::PlatformApp>(content) {
+                                match serde_yaml::from_slice::<platform::PlatformApp>(content) {
+                                    Err(error) => {
+                                        eprintln!("{:#?}", error);
+                                        unreadable.push(&subscription.project_id);
+                                    },
+                                    Ok(app) => {
                                     // eprintln!("{:#?}", app);
                                     eprintln!("\t\t{}", app.name);
 
@@ -216,6 +226,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     lines.push(report);
                                 }
                             }
+                            }
                         }
                     } else {
                         eprintln!("no head commit");
@@ -252,6 +263,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ]; 
 
     eprintln!("{:#?}", services_cnt);
+    eprintln!("{:#?}", unreadable);
+
     let mut services_cols: Vec<String> = services_cnt.into_keys().collect();
     services_cols.sort_unstable();
     heading.append(&mut services_cols.clone());

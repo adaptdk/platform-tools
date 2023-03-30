@@ -97,9 +97,17 @@ pub struct Environment {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct PlatformAppCronCommands {
+    pub start: String,
+    pub stop: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PlatformAppCron {
     pub spec: String,
-    pub cmd: String,
+
+    pub cmd: Option<String>, // deprecated it seems
+    pub commands: Option<PlatformAppCronCommands>
 }
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PlatformApp {
@@ -108,7 +116,7 @@ pub struct PlatformApp {
     pub a_type: String,
     pub build: Option<HashMap<String, String>>,
     pub hooks: Option<HashMap<String, String>>,
-    pub crons: HashMap<String, PlatformAppCron>,
+    pub crons: Option<HashMap<String, PlatformAppCron>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

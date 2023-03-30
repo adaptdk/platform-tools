@@ -14,4 +14,6 @@ base64 = { version = "0.13.0" }
 csv = "1.1"
 regex = "1"
 platform = { path = "../platform" }
+tracing = "0.1.36"
+tracing-subscriber = { version = "0.3.15", features = ["env-filter"] }
 

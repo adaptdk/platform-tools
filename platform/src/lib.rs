@@ -59,7 +59,7 @@ impl ApiClient {
     pub async fn new (api_token: &str) -> Result<ApiClient, reqwest::Error> {
         let client = reqwest::Client::new();
 
-        eprint!("get oauth2 token... ");
+        // eprint!("get oauth2 token... ");
         let oauth2: Oauth2 = client
             .post("https://auth.api.platform.sh/oauth2/token")
             .basic_auth( "platform-api-user", None::<String>)
@@ -68,8 +68,8 @@ impl ApiClient {
             .await?
             .json()
             .await?;
-        eprintln!("ok");
-        eprintln!("{:#?}", oauth2);
+        // eprintln!("ok");
+        // eprintln!("{:#?}", oauth2);
 
         Ok(ApiClient { api_token: api_token.to_string(), oauth2, client })
     }
@@ -93,7 +93,7 @@ impl ApiClient {
         let mut organizations: Vec<Organization> = vec![];
         let mut url = "https://api.platform.sh/organizations".to_string();
 
-        eprintln!("Getting organizations...");
+        // eprintln!("Getting organizations...");
         loop {
             eprintln!("\t{}", url);
             let page: Organizations = self
@@ -128,9 +128,9 @@ impl ApiClient {
         for organization in organizations.iter() {
             let mut url = format!("https://api.platform.sh/organizations/{}/subscriptions", organization.id);
 
-            eprintln!("Getting subscriptions...");
+            // eprintln!("Getting subscriptions...");
             loop {
-                eprintln!("\t{}", url);
+                // eprintln!("\t{}", url);
                 let page: Subscriptions = self
                     .get(url)
                     .send()
