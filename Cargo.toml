@@ -3,4 +3,5 @@
 members = [
     "platform",
     "platform-scan",
+    "stream-test",
 ]
