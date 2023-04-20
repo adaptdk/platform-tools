@@ -1,7 +1,8 @@
 use chrono::{DateTime, Local};
+use clap::Parser;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, env, fs::File, io, str};
+use std::{collections::HashMap, fs::File, io, str};
 use tracing::info;
 
 mod php_composer;
@@ -71,9 +72,28 @@ struct Report {
     services: HashMap<String, String>,
 }
 
+#[derive(Parser, Debug)]
+struct Args {
+    /// List services
+    #[arg(long, short, action)]
+    services: bool,
+
+    /// Project ID
+    #[arg(long, short)]
+    project: Vec<String>,
+
+    /// Platform Access Token
+    #[arg(long, env = "PLATFORMSH_CLI_TOKEN")]
+    token: String,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let token = env::var("PLATFORMSH_CLI_TOKEN").expect("Missing PLATFORMSH_CLI_TOKEN");
+    let args = Args::parse();
+
+    eprintln!("{:#?}", args);
+
+    // let token = env::var("PLATFORMSH_CLI_TOKEN").expect("Missing PLATFORMSH_CLI_TOKEN");
 
     tracing_subscriber::fmt::init();
 
@@ -84,16 +104,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let drupal = Regex::new(r"projects\[drupal\]\[version\]\s*=\s*([0-9.]+)").unwrap();
 
-    let client = platform::ApiClient::new(&token).await?;
+    let client = platform::ApiClient::new(&args.token).await?;
 
-    let organizations = client.organizations().await?;
-    eprint!("{:#?}", organizations);
+    // let organizations = client.organizations().await?;
+    // eprint!("{:#?}", organizations);
 
     let mut services_cnt = HashMap::new();
     let mut unreadable = Vec::new();
     let subscriptions = client.subscriptions().await?;
     // for subscription in subscriptions.iter().filter(|x| x.project_id == "muvtvqjnckbp6") {
     for subscription in subscriptions.iter() {
+        if !args.project.is_empty() && !args.project.contains(&subscription.project_id) {
+            continue;
+        }
+
         eprintln!(
             "{},{},{},{}",
             subscription.project_id,
@@ -189,7 +213,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 2,
                             )
                             .await?;
-                        eprintln!("{:#?}", items);
+                        // eprintln!("{:#?}", items);
 
                         for item in items.iter().filter(|x| x.path == ".platform.app.yaml") {
                             let blob = client.git_blob(&subscription.project_id, &item.sha).await?;
@@ -330,11 +354,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ];
 
     eprintln!("{:#?}", services_cnt);
-    eprintln!("{:#?}", unreadable);
+    eprintln!("Unreadable:\n{:#?}", unreadable);
 
     let mut services_cols: Vec<String> = services_cnt.into_keys().collect();
-    services_cols.sort_unstable();
-    heading.append(&mut services_cols.clone());
+    if args.services {
+        services_cols.sort_unstable();
+        heading.append(&mut services_cols.clone());
+    }
 
     let mut packages_cols = config.report_cols();
     heading.append(&mut packages_cols);
@@ -360,12 +386,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             line.app.clone(),
         ];
 
-        // eprintln!("{:#?}", services_cols);
-        for i in services_cols.iter() {
-            record.push(match line.services.get(i) {
-                Some(value) => value.clone(),
-                None => "".to_string(),
-            })
+        if args.services {
+            for i in services_cols.iter() {
+                record.push(match line.services.get(i) {
+                    Some(value) => value.clone(),
+                    None => "".to_string(),
+                })
+            }
         }
 
         for i in report_cols.iter() {
