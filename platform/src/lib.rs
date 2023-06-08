@@ -2,7 +2,7 @@ use async_recursion::async_recursion;
 use reqwest::{Client, RequestBuilder};
 use std::vec;
 use thiserror::Error;
-use tracing::instrument;
+use tracing::{info, instrument};
 use url::Url;
 
 mod model;
@@ -40,6 +40,7 @@ pub struct GitSearchResult {
     pub sha: String,
 
     pub parent: String,
+    pub fullpath: String,
 }
 
 #[derive(Error, Debug)]
@@ -95,7 +96,8 @@ impl ApiClient {
 
         // eprintln!("Getting organizations...");
         loop {
-            eprintln!("\t{}", url);
+            // eprintln!("\t{}", url);
+            info!(url);
             let page: Organizations = self.get(url).send().await?.json().await?;
 
             organizations.extend(page.items);
@@ -200,6 +202,7 @@ impl ApiClient {
         tree: &str,
         f: fn(path: &str) -> bool,
         limit: u8,
+        root: String,
     ) -> Result<Vec<GitSearchResult>, reqwest::Error> {
         let mut results: Vec<GitSearchResult> = Vec::new();
 
@@ -213,7 +216,13 @@ impl ApiClient {
             if item.t_type == "tree" {
                 // root format!("{}/{}", root, item.path)
                 let mut sub_results = self
-                    .git_tree_find(project_id, &item.sha, f, limit - 1)
+                    .git_tree_find(
+                        project_id,
+                        &item.sha,
+                        f,
+                        limit - 1,
+                        format!("{}/{}", root, item.path),
+                    )
                     .await?;
                 results.append(&mut sub_results);
             }
@@ -224,6 +233,7 @@ impl ApiClient {
                     mode: item.mode.clone(),
                     sha: item.sha.clone(),
                     parent: String::from(tree),
+                    fullpath: format!("{}/{}", root, item.path),
                 };
                 results.push(res);
                 // eprintln!("found {}", item.sha);

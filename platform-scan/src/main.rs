@@ -1,9 +1,11 @@
+use base64::{engine::general_purpose, Engine as _};
 use chrono::{DateTime, Local};
 use clap::Parser;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+//use tracing_subscriber::{layer::SubscriberExt, registry::Registry};
 use std::{collections::HashMap, fs::File, io, str};
-use tracing::info;
+use tracing::{error, info, warn};
 
 mod php_composer;
 
@@ -91,11 +93,13 @@ struct Args {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
-    eprintln!("{:#?}", args);
-
-    // let token = env::var("PLATFORMSH_CLI_TOKEN").expect("Missing PLATFORMSH_CLI_TOKEN");
-
-    tracing_subscriber::fmt::init();
+    // tracing_subscriber::fmt::init();
+    let subscriber = tracing_subscriber::fmt()
+        .with_writer(std::io::stderr)
+        .finish();
+    // let subscriber = Registry::default()
+    //     .with(HierarchicalLayer::new(2));
+    tracing::subscriber::set_global_default(subscriber)?;
 
     let file = File::open("config.yaml")?;
     let config: Config = serde_yaml::from_reader(file)?;
@@ -110,7 +114,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // eprint!("{:#?}", organizations);
 
     let mut services_cnt = HashMap::new();
-    let mut unreadable = Vec::new();
+    let mut unreadable: HashMap<&String, Vec<String>> = HashMap::new();
     let subscriptions = client.subscriptions().await?;
     // for subscription in subscriptions.iter().filter(|x| x.project_id == "muvtvqjnckbp6") {
     for subscription in subscriptions.iter() {
@@ -118,13 +122,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             continue;
         }
 
-        eprintln!(
-            "{},{},{},{}",
-            subscription.project_id,
-            subscription.project_title,
-            subscription.plan,
-            subscription.storage
-        );
+        // eprintln!(
+        //     "{},{},{},{}",
+        //     subscription.project_id,
+        //     subscription.project_title,
+        //     subscription.plan,
+        //     subscription.storage
+        // );
         info!(
             subscription.project_id,
             subscription.project_title, subscription.plan, subscription.storage
@@ -145,7 +149,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // eprintln!("\t{}: {}", environment.title, environment.is_main);
                 if environment.is_main {
                     // eprintln!("{:#?}", environment);
-                    eprintln!("\t{}", environment.name);
+                    // eprintln!("\t{}", environment.name);
+                    info!(environment.name);
                     if let Some(head_commit) = environment.head_commit.as_ref() {
                         let git_commit = client
                             .git_commit(&subscription.project_id, head_commit)
@@ -169,7 +174,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 )
                                 .await?
                             {
-                                eprintln!("\t\tgot a services file {}", services_yaml.t_type);
+                                // eprintln!("\t\tgot a services file {}", services_yaml.t_type);
+                                info!(services_yaml.t_type);
                                 if let Ok(buffer) = client
                                     .git_blob_decode(&subscription.project_id, &services_yaml.sha)
                                     .await
@@ -181,7 +187,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     {
                                         // eprintln!("{:#?}", services);
                                         for (name, service) in services.iter() {
-                                            eprintln!("\t\t\t{}: {}", name, service.s_type);
+                                            //eprintln!("\t\t\t{}: {}", name, service.s_type);
+                                            info!(name, service.s_type);
                                             //if service.s_type.starts_with("elasticsearch") {
                                             //    service_versions.insert("elasticsearch", service.s_type.clone());
                                             //}
@@ -211,22 +218,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         || path.ends_with(".make")
                                 },
                                 2,
+                                "".to_string(),
                             )
                             .await?;
-                        // eprintln!("{:#?}", items);
 
                         for item in items.iter().filter(|x| x.path == ".platform.app.yaml") {
                             let blob = client.git_blob(&subscription.project_id, &item.sha).await?;
-                            if let Ok(content) = &base64::decode(blob.content) {
-                                // if let Ok(app) = serde_yaml::from_slice::<platform::PlatformApp>(content) {
+                            if let Ok(content) = &general_purpose::STANDARD.decode(blob.content) {
                                 match serde_yaml::from_slice::<platform::PlatformApp>(content) {
                                     Err(error) => {
-                                        eprintln!("{:#?}", error);
-                                        unreadable.push(&subscription.project_id);
+                                        // eprintln!("{:#?}", error);
+                                        error!(%error, "Unreadable yaml file");
+                                        unreadable
+                                            .entry(&subscription.project_id)
+                                            .and_modify(|files| files.push(item.fullpath.clone()))
+                                            .or_insert(vec![item.fullpath.clone()]);
                                     }
                                     Ok(app) => {
                                         // eprintln!("{:#?}", app);
-                                        eprintln!("\t\t{}", app.name);
+                                        info!(app.name);
 
                                         let mut version = HashMap::new();
                                         if app.a_type.starts_with("php:") {
@@ -320,7 +330,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             }
                         }
                     } else {
-                        eprintln!("no head commit");
+                        // eprintln!("no head commit");
+                        warn!("no head commit");
                     }
                 }
             }
@@ -353,7 +364,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "app".to_string(),
     ];
 
-    eprintln!("{:#?}", services_cnt);
+    // eprintln!("{:#?}", services_cnt);
     eprintln!("Unreadable:\n{:#?}", unreadable);
 
     let mut services_cols: Vec<String> = services_cnt.into_keys().collect();
@@ -409,15 +420,3 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // println!("{:#?}", lines);
     Ok(())
 }
-
-// #[allow(dead_code)]
-// async fn default_branch (projectId: String) -> Option<String> {
-//     /*
-//     get all list of environments
-//     find the one whit environment.is_main
-//     https://github.com/platformsh/platformsh-cli/blob/f6f3777efe0b9c64bcb36d19171de0e07247e43b/src/Service/Api.php#L1168
-//     */
-//     let mut default_branch: Option<String> = None;
-
-//     default_branch
-// }
