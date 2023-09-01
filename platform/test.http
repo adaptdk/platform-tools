@@ -111,3 +111,10 @@ Authorization: Bearer {{authToken}}
 @variableId=env:COMPOSER_AUTH
 get https://api.platform.sh/projects/{{projectId}}/variables/{{variableId}}
 Authorization: Bearer {{authToken}}
+
+
+###
+@projectId=l6spzfqi33tcq
+get https://api.platform.sh/api/projects/{{projectId}}/environments"
+Authorization: Bearer {{authToken}}
+

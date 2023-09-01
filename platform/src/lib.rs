@@ -49,6 +49,8 @@ pub enum Error {
     Reqwest(#[from] reqwest::Error),
     #[error(transparent)]
     Base64(#[from] base64::DecodeError),
+    #[error("Not found")]
+    NotFound
 }
 
 impl ApiClient {
@@ -288,5 +290,27 @@ impl ApiClient {
         // eprintln!("base64 decode... ok");
 
         Ok(content)
+    }
+
+    pub async fn main_environment(&self, project_id: &str) -> Result<Environment, Error> {
+        let environments_res: Result<Vec<Environment>, reqwest::Error> = self
+            .get(format!(
+                "https://api.platform.sh/projects/{}/environments",
+                project_id
+            ))
+            .send()
+            .await?
+            .json()
+            .await;
+
+        if let Ok(environments) = environments_res {
+            for environment in environments.iter() {
+                if environment.is_main {
+                    return Ok(environment.clone());
+                }
+            }
+        }
+
+        return Err(Error::NotFound)
     }
 }

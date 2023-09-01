@@ -1,5 +1,6 @@
 use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -64,7 +65,7 @@ pub struct Subscriptions {
     pub _links: HashMap<String, HALLink>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Environment {
     pub created_at: Option<DateTime<Local>>, // date-time
     pub updated_at: Option<DateTime<Local>>, // date-time
@@ -77,7 +78,7 @@ pub struct Environment {
     pub attributes: HashMap<String, String>,
 
     #[serde(rename = "type")]
-    pub e_type: String,
+    pub r#type: String,
 
     pub parent: Option<String>,
     pub clone_parent_on_create: bool,
@@ -157,4 +158,20 @@ pub struct GitBlob {
     pub size: u32,
     pub encoding: String,
     pub content: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Activity {
+    pub created_at: Option<DateTime<Local>>,
+    pub updated_at: Option<DateTime<Local>>,
+    #[serde(rename = "type")]
+    pub r#type: String,
+    pub parameters: Value,
+    pub state: String,
+    pub result: Option<String>,
+    pub started_at: Option<DateTime<Local>>,
+    pub completed_at: Option<DateTime<Local>>,
+    pub cancelled_at: Option<DateTime<Local>>,
+    pub timings: HashMap<String, f64>,
+    pub _links: HashMap<String, HALLink>,
 }
