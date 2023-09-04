@@ -91,6 +91,8 @@ pub struct Project {
     pub default_domain: Option<String>,
 
     // pub subscription: ...
+
+    pub _links: HashMap<String, HALLink>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
