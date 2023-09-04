@@ -78,6 +78,19 @@ impl ApiClient {
     }
 
     #[instrument(skip(self))]
+    pub async fn re_authenticate(&mut self) -> Result<(), reqwest::Error> {
+        self.oauth2 = self.client
+            .post("https://auth.api.platform.sh/oauth2/token")
+            .basic_auth("platform-api-user", None::<String>)
+            .form(&[("grant_type", "api_token"), ("api_token", &self.api_token)])
+            .send()
+            .await?
+            .json()
+            .await?;
+        Ok(())
+    }
+
+    #[instrument(skip(self))]
     pub fn get(&self, url: String) -> RequestBuilder {
         let options = Url::options();
         let api = Url::parse("https://api.platform.sh").unwrap();

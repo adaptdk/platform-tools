@@ -65,6 +65,34 @@ pub struct Subscriptions {
     pub _links: HashMap<String, HALLink>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Project {
+    pub created_at: Option<DateTime<Local>>,
+    pub updated_at: Option<DateTime<Local>>,
+
+    pub attributes: HashMap<String, String>,
+
+    pub title: String,
+    pub description: String,
+
+    pub namespace: String,
+    pub organization: String,
+    pub default_branch: Option<String>,
+
+    // should be struct { code: ..., message: ... }
+    pub status: HashMap<String, String>,
+
+    pub timezone: String,
+    pub region: String,
+
+    // should be struct { url: ..., client_ssh_key: ... }
+    pub repository: HashMap<String, String>,
+
+    pub default_domain: Option<String>,
+
+    // pub subscription: ...
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Environment {
     pub created_at: Option<DateTime<Local>>, // date-time
@@ -174,4 +202,24 @@ pub struct Activity {
     pub cancelled_at: Option<DateTime<Local>>,
     pub timings: HashMap<String, f64>,
     pub _links: HashMap<String, HALLink>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct User {
+    pub id: String, // UUID
+    pub deactivated: bool,
+    pub namespace: String,
+    pub username: String,
+    pub email: String,
+    pub email_verified: bool,
+    pub first_name: String,
+    pub last_name: String,
+    pub picture: String,
+    pub company: String,
+    pub website: String,
+    pub country: String,
+    // pub mfa_enabled: bool,
+    pub phone_number_verified: bool,
+    pub created_at: DateTime<Local>,
+    pub updated_at: DateTime<Local>,
 }
