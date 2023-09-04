@@ -24,7 +24,7 @@ pub use crate::model::*;
 //     }
 // }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ApiClient {
     #[allow(dead_code)]
     api_token: String,
