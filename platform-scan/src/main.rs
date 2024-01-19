@@ -63,6 +63,7 @@ struct Report {
     title: String,
     plan: String,
     storage: i32,
+    region: String,
 
     // Environment
     last_backup_at: Option<DateTime<Local>>,
@@ -315,6 +316,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                             title: subscription.project_title.to_string(),
                                             plan: subscription.plan.to_string(),
                                             storage: subscription.storage,
+                                            region: subscription.project_region.clone().unwrap_or("".to_string()),
 
                                             last_backup_at: environment.last_backup_at,
 
@@ -341,6 +343,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 title: subscription.project_title.to_string(),
                 plan: subscription.plan.to_string(),
                 storage: subscription.storage,
+                region: subscription.project_region.clone().unwrap_or("".to_string()),
 
                 last_backup_at: None,
 
@@ -355,13 +358,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let mut heading = vec![
-        "subscription".to_string(),
-        "title".to_string(),
-        "plan".to_string(),
-        "storage".to_string(),
-        "last_backup_at".to_string(),
-        "type".to_string(),
-        "app".to_string(),
+        "Subscription".to_string(),
+        "Title".to_string(),
+        "Plan".to_string(),
+        "Storage".to_string(),
+        "Region".to_string(),
+        "Last Backup at".to_string(),
+        "Type".to_string(),
+        "App".to_string(),
     ];
 
     // eprintln!("{:#?}", services_cnt);
@@ -388,6 +392,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             line.title.clone(),
             line.plan.clone(),
             line.storage.to_string(),
+            line.region.clone(),
             // "".to_string(),
             match line.last_backup_at {
                 Some(dt) => dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, false),
