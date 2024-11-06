@@ -1,4 +1,8 @@
 target
 *.csv
+*.sql
 .vscode
 Cargo.lock
+.zed
+.env
+tmp
