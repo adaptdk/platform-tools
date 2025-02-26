@@ -91,7 +91,13 @@ pub struct Project {
     pub default_domain: Option<String>,
 
     // pub subscription: ...
+    pub _links: HashMap<String, HALLink>,
+}
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Projects {
+    pub count: i32,
+    pub items: Vec<Project>,
     pub _links: HashMap<String, HALLink>,
 }
 
@@ -144,7 +150,7 @@ pub struct PlatformAppCron {
 pub struct PlatformApp {
     pub name: String,
     #[serde(rename = "type")]
-    pub a_type: String,
+    pub r#type: String,
     pub build: Option<HashMap<String, String>>,
     pub hooks: Option<HashMap<String, String>>,
     pub crons: Option<HashMap<String, PlatformAppCron>>,
@@ -153,7 +159,7 @@ pub struct PlatformApp {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PlatformService {
     #[serde(rename = "type")]
-    pub s_type: String,
+    pub r#type: String,
     pub disk: Option<i32>,
     pub size: Option<String>,
     // configuration: Option<HashMap<String, String>>, // more complex
@@ -172,7 +178,7 @@ pub struct GitTreeItem {
     pub path: String,
     pub mode: String,
     #[serde(rename = "type")]
-    pub t_type: String,
+    pub r#type: String,
     pub sha: String,
 }
 
@@ -192,11 +198,12 @@ pub struct GitBlob {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Activity {
+    pub id: String, // not in spec
     pub created_at: Option<DateTime<Local>>,
     pub updated_at: Option<DateTime<Local>>,
     #[serde(rename = "type")]
     pub r#type: String,
-    pub parameters: Value,
+    pub parameters: HashMap<String, Value>,
     pub state: String,
     pub result: Option<String>,
     pub started_at: Option<DateTime<Local>>,

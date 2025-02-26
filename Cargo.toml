@@ -1,7 +1,12 @@
 [workspace]
-
+resolver = "2"
 members = [
     "platform",
     "platform-scan",
-    "stream-test",
+    # "stream-test",
+    # "monitor-activities",
+    # "activity-logs",
 ]
+
+[workspace.dependencies]
+reqwest = { version = "0.12.9", features = ["json"] }

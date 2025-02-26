@@ -1,3 +1,4 @@
+
 @PLATFORMSH_CLI_TOKEN={{$dotenv PLATFORMSH_CLI_TOKEN}}
 # @name oauth2
 post https://auth.api.platform.sh/oauth2/token HTTP/1.1
@@ -9,9 +10,41 @@ grant_type=api_token
 
 ###
 
+# @name me
+@authToken = {{oauth2.response.body.access_token}}
+get https://api.platform.sh/api/platform/me
+Authorization: Bearer {{authToken}}
+
+###
+
+# @name organizations
 @authToken = {{oauth2.response.body.access_token}}
 get https://api.platform.sh/organizations
 Authorization: Bearer {{authToken}}
+
+###
+
+@authToken = {{oauth2.response.body.access_token}}
+# @name projects
+@orgId = {{organizations.response.body.items[0].id}}
+get https://api.platform.sh/organizations/{{orgId}}/projects
+Authorization: Bearer {{authToken}}
+
+###
+@authToken = {{oauth2.response.body.access_token}}
+# @name subscription1
+@orgId = {{organizations.response.body.items[0].id}}
+get https://api.platform.sh/organizations/{{orgId}}/subscriptions?filter=active
+Authorization: Bearer {{authToken}}
+
+###
+
+@authToken = {{oauth2.response.body.access_token}}
+# @name subscription2
+@orgId = {{organizations.response.body.items[1].id}}
+get https://api.platform.sh/organizations/{{orgId}}/subscriptions?filter=active
+Authorization: Bearer {{authToken}}
+
 
 ###
 
@@ -33,6 +66,14 @@ Authorization: Bearer {{authToken}}
 @orgId = 01FF4NCSJA3VGZBXVG5CWYCDZ9
 get https://api.platform.sh/organizations/{{orgId}}/subscriptions
 Authorization: Bearer {{authToken}}
+
+###
+
+@authToken = {{oauth2.response.body.access_token}}
+# @name subscriptions
+get https://api.platform.sh/organizations/01FF4NCSJA3VGZBXVG5CWYCDZ9/subscriptions
+Authorization: Bearer {{authToken}}
+
 
 ###
 
@@ -114,7 +155,7 @@ Authorization: Bearer {{authToken}}
 
 
 ###
-@projectId=l6spzfqi33tcq
-get https://api.platform.sh/api/projects/{{projectId}}/environments"
+@projectId=tfje5oaa26mxs
+get https://api.platform.sh/projects/{{projectId}}"
 Authorization: Bearer {{authToken}}
 

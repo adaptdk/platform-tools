@@ -5,7 +5,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 //use tracing_subscriber::{layer::SubscriberExt, registry::Registry};
 use std::{collections::HashMap, fs::File, io, str};
-use tracing::{error, info, warn};
+use tracing::{error, info, span, warn};
 
 mod php_composer;
 
@@ -69,7 +69,7 @@ struct Report {
     last_backup_at: Option<DateTime<Local>>,
 
     // App
-    a_type: String,
+    r#type: String,
     app: String,
     packages: HashMap<String, String>,
     services: HashMap<String, String>,
@@ -96,6 +96,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // tracing_subscriber::fmt::init();
     let subscriber = tracing_subscriber::fmt()
+        .pretty()
         .with_writer(std::io::stderr)
         .finish();
     // let subscriber = Registry::default()
@@ -117,19 +118,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut services_cnt = HashMap::new();
     let mut unreadable: HashMap<&String, Vec<String>> = HashMap::new();
     let subscriptions = client.subscriptions().await?;
-    // for subscription in subscriptions.iter().filter(|x| x.project_id == "muvtvqjnckbp6") {
     for subscription in subscriptions.iter() {
         if !args.project.is_empty() && !args.project.contains(&subscription.project_id) {
             continue;
         }
+        let _guard = span!(
+            tracing::Level::INFO,
+            "subscription",
+            id = &subscription.project_id
+        )
+        .entered();
 
-        // eprintln!(
-        //     "{},{},{},{}",
-        //     subscription.project_id,
-        //     subscription.project_title,
-        //     subscription.plan,
-        //     subscription.storage
-        // );
         info!(
             subscription.project_id,
             subscription.project_title, subscription.plan, subscription.storage
@@ -176,7 +175,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 .await?
                             {
                                 // eprintln!("\t\tgot a services file {}", services_yaml.t_type);
-                                info!(services_yaml.t_type);
+                                info!(services_yaml.r#type);
                                 if let Ok(buffer) = client
                                     .git_blob_decode(&subscription.project_id, &services_yaml.sha)
                                     .await
@@ -189,12 +188,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         // eprintln!("{:#?}", services);
                                         for (name, service) in services.iter() {
                                             //eprintln!("\t\t\t{}: {}", name, service.s_type);
-                                            info!(name, service.s_type);
-                                            //if service.s_type.starts_with("elasticsearch") {
-                                            //    service_versions.insert("elasticsearch", service.s_type.clone());
+                                            info!(name, service.r#type);
+                                            //if service.r#type.starts_with("elasticsearch") {
+                                            //    service_versions.insert("elasticsearch", service.r#type.clone());
                                             //}
                                             if let Some((name, version)) =
-                                                service.s_type.split_once(':')
+                                                service.r#type.split_once(':')
                                             {
                                                 service_versions
                                                     .insert(name.to_string(), version.to_string());
@@ -237,14 +236,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     }
                                     Ok(app) => {
                                         // eprintln!("{:#?}", app);
-                                        info!(app.name);
+                                        let _guard =
+                                            span!(tracing::Level::INFO, "app", name = &app.name)
+                                                .entered();
 
                                         let mut version = HashMap::new();
-                                        if app.a_type.starts_with("php:") {
+                                        if app.r#type.starts_with("php:") {
                                             for lock in items.iter().filter(|x| {
                                                 x.path == "composer.lock" && x.parent == item.parent
                                             }) {
                                                 // eprintln!("got {} {}", app.name, lock.path);
+                                                info!(
+                                                    app.name,
+                                                    path = lock.fullpath,
+                                                    "composer.lock"
+                                                );
 
                                                 if let Ok(buffer) = client
                                                     .git_blob_decode(
@@ -316,12 +322,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                             title: subscription.project_title.to_string(),
                                             plan: subscription.plan.to_string(),
                                             storage: subscription.storage,
-                                            region: subscription.project_region.clone().unwrap_or("".to_string()),
+                                            region: subscription
+                                                .project_region
+                                                .clone()
+                                                .unwrap_or("".to_string()),
 
                                             last_backup_at: environment.last_backup_at,
 
                                             app: app.name.to_string(),
-                                            a_type: app.a_type.to_string(),
+                                            r#type: app.r#type.to_string(),
                                             packages: version,
                                             services: service_versions.clone(),
                                         };
@@ -343,11 +352,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 title: subscription.project_title.to_string(),
                 plan: subscription.plan.to_string(),
                 storage: subscription.storage,
-                region: subscription.project_region.clone().unwrap_or("".to_string()),
+                region: subscription
+                    .project_region
+                    .clone()
+                    .unwrap_or("".to_string()),
 
                 last_backup_at: None,
 
-                a_type: "".to_string(),
+                r#type: "".to_string(),
                 app: "".to_string(),
                 packages: HashMap::new(),
                 services: HashMap::new(),
@@ -368,8 +380,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "App".to_string(),
     ];
 
-    // eprintln!("{:#?}", services_cnt);
-    eprintln!("Unreadable:\n{:#?}", unreadable);
+    if !unreadable.is_empty() {
+        // eprintln!("{:#?}", services_cnt);
+        eprintln!("Unreadable:\n{:#?}", unreadable);
+    }
 
     let mut services_cols: Vec<String> = services_cnt.into_keys().collect();
     if args.services {
@@ -398,7 +412,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Some(dt) => dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, false),
                 None => "".to_string(),
             },
-            line.a_type.clone(),
+            line.r#type.clone(),
             line.app.clone(),
         ];
 

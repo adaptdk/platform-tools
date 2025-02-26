@@ -1,8 +1,9 @@
 use async_recursion::async_recursion;
+use base64::{engine::general_purpose, Engine as _};
 use reqwest::{Client, RequestBuilder};
 use std::vec;
 use thiserror::Error;
-use tracing::{info, instrument};
+use tracing::{debug, info, instrument};
 use url::Url;
 
 mod model;
@@ -36,7 +37,7 @@ pub struct ApiClient {
 pub struct GitSearchResult {
     pub path: String,
     pub mode: String,
-    pub t_type: String,
+    pub r#type: String,
     pub sha: String,
 
     pub parent: String,
@@ -50,7 +51,7 @@ pub enum Error {
     #[error(transparent)]
     Base64(#[from] base64::DecodeError),
     #[error("Not found")]
-    NotFound
+    NotFound,
 }
 
 impl ApiClient {
@@ -79,7 +80,8 @@ impl ApiClient {
 
     #[instrument(skip(self))]
     pub async fn re_authenticate(&mut self) -> Result<(), reqwest::Error> {
-        self.oauth2 = self.client
+        self.oauth2 = self
+            .client
             .post("https://auth.api.platform.sh/oauth2/token")
             .basic_auth("platform-api-user", None::<String>)
             .form(&[("grant_type", "api_token"), ("api_token", &self.api_token)])
@@ -97,6 +99,7 @@ impl ApiClient {
         let base_url = options.base_url(Some(&api));
         let endpoint_url = base_url.parse(&url).unwrap();
 
+        debug!(url);
         self.client
             .get(endpoint_url)
             .bearer_auth(&self.oauth2.access_token)
@@ -141,7 +144,7 @@ impl ApiClient {
 
         for organization in organizations.iter() {
             let mut url = format!(
-                "https://api.platform.sh/organizations/{}/subscriptions",
+                "https://api.platform.sh/organizations/{}/subscriptions?filter=active",
                 organization.id
             );
 
@@ -228,7 +231,7 @@ impl ApiClient {
         let git_tree = self.git_tree(project_id, tree).await?;
 
         for item in git_tree.tree.iter() {
-            if item.t_type == "tree" {
+            if item.r#type == "tree" {
                 // root format!("{}/{}", root, item.path)
                 let mut sub_results = self
                     .git_tree_find(
@@ -241,10 +244,10 @@ impl ApiClient {
                     .await?;
                 results.append(&mut sub_results);
             }
-            if item.t_type == "blob" && f(&item.path) {
+            if item.r#type == "blob" && f(&item.path) {
                 let res = GitSearchResult {
                     path: item.path.clone(),
-                    t_type: item.t_type.clone(),
+                    r#type: item.r#type.clone(),
                     mode: item.mode.clone(),
                     sha: item.sha.clone(),
                     parent: String::from(tree),
@@ -299,7 +302,7 @@ impl ApiClient {
         // eprintln!("download... ok");
 
         // Add compound Error type Enum reqwest::Error + base64 error
-        let content = base64::decode(blob.content)?;
+        let content = general_purpose::STANDARD.decode(blob.content)?;
         // eprintln!("base64 decode... ok");
 
         Ok(content)
@@ -324,6 +327,6 @@ impl ApiClient {
             }
         }
 
-        return Err(Error::NotFound)
+        return Err(Error::NotFound);
     }
 }
