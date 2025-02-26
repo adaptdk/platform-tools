@@ -1,17 +1,70 @@
 ---
 frameworks:
-  drupal:
-      - drupal/core
-      - drupal/drupal
-  wordpress:
+  Drupal:
+    - drupal/core
+    - drupal/drupal
+  Wordpress:
     - johnpbloch/wordpress-core
     - roots/wordpress
-  laravel:
-    - laravel/framework
-  symfony:
+  Symfony:
     - symfony/symfony
     - symfony/flex
+  Akeneo:
+    - akeneo/pim-community-standard
+    - akeneo/pim-community-dev
+  Nova:
+    - laravel/nova
+  Statamic:
+    - statamic/cms
+  Laravel:
+    - laravel/framework
 packages:
-  - drupal/xray_audit # SA-CONTRIB-2023-012
-  - guzzlehttp/guzzle
-  - laravel/nova
+  # - drupal/file_chooser_field # SA-CONTRIB-2023-015
+  # - guzzlehttp/guzzle
+  # - advanced-custom-fields/advanced-custom-fields-pro # CVE-2023-30777
+  # - drupal/gdpr_alert # SA-CONTRIB-2023-023
+  # - drupal/gridstack # SA-CONTRIB-2023-024
+  # - drupal/mailchimp # SA-CONTRIB-2023-025
+  # - drupal/search_autocomplete # SA-CONTRIB-2023-026
+  # - drupal/libraries_ui # SA-CONTRIB-2023-027
+  # - drupal/expandable_formatter # SA-CONTRIB-2023-028
+  # - drupal/tacjs # SA-CONTRIB-2023-029
+  # - drupal/flexiaccess # SA-CONTRIB-2023-036
+  # - drupal/config_pages # SA-CONTRIB-2023-037
+  # - drupal/shorthand # SA-CONTRIB-2023-038
+  # - drupal/safedelete # SA-CONTRIB-2023-039
+  # - drupal/datafield # SA-CONTRIB-2023-040
+  # - drupal/unified_twig_ext # SA-CONTRIB-2023-041
+  # - drupal/obfuscate_email # SA-CONTRIB-2023-042
+  # - drupal/highlight_php # SA-CONTRIB-2023-043
+  # - drupal/webprofiler # SA-CONTRIB-2023-044
+  # - drupal/entitycache # SA-CONTRIB-2023-046
+  # - drupal/content_moderation_notifications # SA-CONTRIB-2023-047
+  # - drupal/mail_login # SA-CONTRIB-2023-045 + SA-CONTRIB-2023-048
+  # - drupal/paragraphs_admin # SA-CONTRIB-2023-049
+  # - drupal/file_entity # SA-CONTRIB-2024-001
+  # - drupal/typogrify # SA-CONTRIB-2024-002
+  # - drupal/tfa # SA-CONTRIB-2024-003
+  # - drupal/social # SA-CONTRIB-2024-004 + SA-CONTRIB-2024-005
+  - drupal/swiftmailer # SA-CONTRIB-2024-006
+  # - drupal/entity_delete_log # SA-CONTRIB-2024-007
+  - drupal/ckeditor # SA-CONTRIB-2024-009
+  # - drupal/coffee # SA-CONTRIB-2024-011
+  # - drupal/private_content # SA-CONTRIB-2024-012
+  # - drupal/node_access_rebuild_progressive # SA-CONTRIB-2024-013
+  # - drupal/symfony_mailer_lite # SA-CONTRIB-2024-014
+  # - drupal/registration_role # SA-CONTRIB-2024-015
+  # - drulal/tacjs # SA-CONTRIB-2024-016
+  # - drupal/advanced_pwa # SA-CONTRIB-2024-017
+  # - drupal/rest_views # SA-CONTRIB-2024-018
+  # - drupal/restws # SA-CONTRIB-2024-019
+  # - drupal/email_contact # SA-CONTRIB-2024-020
+  # - drupal/commerce_view_receipt # SA-CONTRIB-2024-021
+  # - drupal/rest_api_authentication # SA-CONTRIB-2024-022
+  # - drupal/image_sizes # SA-CONTRIB-2024-023
+  # - drupal/migrate_queue_importer # SA-CONTRIB-2024-024
+  - wpengine/advanced-custom-fields-pro
+  # - drupal/postfile # SA-CONTRIB-2024-059 + SA-CONTRIB-2024-060
+  # - drupal/node_export # SA-CONTRIB-2024-061
+  # - drupal/mailjet # SA-CONTRIB-2024-062
+  # - drupal/eloqua # SA-CONTRIB-2024-063
