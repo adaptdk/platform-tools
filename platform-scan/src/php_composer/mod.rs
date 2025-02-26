@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -7,6 +9,8 @@ pub struct ComposerLockPackage {
 
     #[serde(rename = "type")]
     pub package_type: String,
+
+    pub require: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
