@@ -93,7 +93,6 @@ struct Args {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
-
     // tracing_subscriber::fmt::init();
     let subscriber = tracing_subscriber::fmt()
         .pretty()
