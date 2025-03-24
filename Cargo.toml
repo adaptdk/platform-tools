@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "copy-vars",
     "platform",
     "platform-scan",
     # "stream-test",
@@ -9,4 +10,5 @@ members = [
 ]
 
 [workspace.dependencies]
+tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.12.9", features = ["json"] }

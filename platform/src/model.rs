@@ -232,3 +232,34 @@ pub struct User {
     pub created_at: DateTime<Local>,
     pub updated_at: DateTime<Local>,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Variable {
+    pub name: String,
+    pub attributes: HashMap<String, Value>,
+    pub value: Option<String>,
+    pub is_json: bool,
+    pub is_sensitive: bool,
+    pub visible_build: bool,
+    pub visible_runtime: bool,
+    pub created_at: DateTime<Local>,
+    pub updated_at: DateTime<Local>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EnvironmentVariable {
+    pub name: String,
+    pub attributes: HashMap<String, Value>,
+    pub value: Option<String>,
+    pub is_json: bool,
+    pub is_sensitive: bool,
+    pub visible_build: bool,
+    pub visible_runtime: bool,
+    pub project: String,
+    pub environment: String,
+    pub inherited: bool,
+    pub is_enabled: bool,
+    pub is_inheritable: bool,
+    pub created_at: DateTime<Local>,
+    pub updated_at: DateTime<Local>,
+}

@@ -1,0 +1,10 @@
+[package]
+name = "copy-vars"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+platform = { path = "../platform" }
+tokio = { workspace = true, features = ["full"] }
+reqwest = { workspace = true, features = ["json"] }
+clap = { version = "4.3.2", features = ["derive", "env"] }
